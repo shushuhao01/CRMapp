@@ -52,7 +52,7 @@
         >
           <!-- 左侧头像 -->
           <view class="call-avatar" :class="getCallTypeClass(call)">
-            <text class="avatar-text">{{ getInitial(call.customerName) }}</text>
+            <text class="avatar-text">{{ getInitial(call.customerName || '') }}</text>
           </view>
 
           <!-- 中间信息 -->
@@ -141,10 +141,20 @@ onMounted(() => {
     console.log('[Calls] 收到通话完成事件，刷新通话记录')
     loadData(true)
   })
+
+  // 监听录音上传成功事件
+  uni.$on('recording:uploaded', (callId: string) => {
+    console.log('[Calls] 录音上传成功，刷新记录:', callId)
+    // 延迟1秒刷新，确保后端已更新
+    setTimeout(() => {
+      loadData(true)
+    }, 1000)
+  })
 })
 
 onUnmounted(() => {
   uni.$off('call:completed')
+  uni.$off('recording:uploaded')
 })
 
 // 按日期分组

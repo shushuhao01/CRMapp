@@ -53,14 +53,16 @@ class WebSocketService {
     }
 
     if (!userStore.wsToken) {
-      console.log('[WebSocket] 缺少 wsToken')
+      console.log('[WebSocket] 缺少 wsToken，请重新扫码绑定')
+      uni.$emit('ws:need_rebind', { reason: 'missing_token' })
       return
     }
 
     // 优先使用 userStore 中保存的 wsUrl，否则从 serverStore 计算
     const baseWsUrl = userStore.wsUrl || serverStore.wsUrl
     if (!baseWsUrl) {
-      console.log('[WebSocket] 缺少 WebSocket 地址')
+      console.log('[WebSocket] 缺少 WebSocket 地址，请重新扫码绑定')
+      uni.$emit('ws:need_rebind', { reason: 'missing_url' })
       return
     }
 
@@ -75,21 +77,43 @@ class WebSocketService {
     if (!wsUrl.includes('/ws/mobile')) {
       wsUrl = `${baseWsUrl}/ws/mobile`
     }
+
+    // 确保使用正确的协议
+    if (wsUrl.startsWith('http://')) {
+      wsUrl = wsUrl.replace('http://', 'ws://')
+    } else if (wsUrl.startsWith('https://')) {
+      wsUrl = wsUrl.replace('https://', 'wss://')
+    }
+
+    // 🔥 修复：确保 wsUrl 不包含 /api/v1 前缀
+    wsUrl = wsUrl.replace('/api/v1/ws/mobile', '/ws/mobile')
+    wsUrl = wsUrl.replace('/api/ws/mobile', '/ws/mobile')
+
     wsUrl = `${wsUrl}?token=${userStore.wsToken}`
 
     console.log('[WebSocket] 正在连接:', wsUrl)
+    console.log('[WebSocket] wsToken长度:', userStore.wsToken.length)
+    console.log('[WebSocket] 当前wsUrl:', userStore.wsUrl)
+    console.log('[WebSocket] serverStore.wsUrl:', serverStore.wsUrl)
 
-    this.socket = uni.connectSocket({
-      url: wsUrl,
-      success: () => {
-        console.log('[WebSocket] 连接请求已发送')
-      },
-      fail: (err) => {
-        console.error('[WebSocket] 连接请求失败:', err)
-      }
-    })
+    try {
+      this.socket = uni.connectSocket({
+        url: wsUrl,
+        success: () => {
+          console.log('[WebSocket] 连接请求已发送')
+        },
+        fail: (err) => {
+          console.error('[WebSocket] 连接请求失败:', JSON.stringify(err))
+          // 连接失败时触发重连
+          this.scheduleReconnect()
+        }
+      })
 
-    this.setupListeners()
+      this.setupListeners()
+    } catch (e) {
+      console.error('[WebSocket] 创建连接异常:', e)
+      this.scheduleReconnect()
+    }
   }
 
   // 设置监听器
@@ -136,7 +160,9 @@ class WebSocketService {
 
     // 连接错误
     this.socket.onError((err) => {
-      console.error('[WebSocket] 连接错误:', err)
+      // 打印更详细的错误信息
+      console.error('[WebSocket] 连接错误:', JSON.stringify(err))
+      console.error('[WebSocket] 当前连接URL:', this.getCurrentWsUrl())
       this.isConnected = false
       uni.$emit('ws:error', err)
     })
@@ -426,6 +452,19 @@ class WebSocketService {
   // 设置设备解绑回调
   onDeviceUnbind(callback: () => void) {
     this.onDeviceUnbindCallback = callback
+  }
+
+  // 获取当前WebSocket URL（用于调试）
+  private getCurrentWsUrl(): string {
+    const userStore = useUserStore()
+    const serverStore = useServerStore()
+    const baseWsUrl = userStore.wsUrl || serverStore.wsUrl
+    if (!baseWsUrl) return '(无wsUrl)'
+    let wsUrl = baseWsUrl
+    if (!wsUrl.includes('/ws/mobile')) {
+      wsUrl = `${baseWsUrl}/ws/mobile`
+    }
+    return wsUrl
   }
 }
 

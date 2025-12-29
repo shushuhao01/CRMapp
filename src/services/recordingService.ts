@@ -733,6 +733,109 @@ class RecordingService {
     return false
     // #endif
   }
+
+  /**
+   * 🔥 清理过期录音文件
+   * @param retentionDays 保留天数，默认3天
+   * @returns 清理结果
+   */
+  async cleanupExpiredRecordings(retentionDays: number = 3): Promise<{
+    success: boolean
+    deletedCount: number
+    freedSpace: number
+    errors: string[]
+  }> {
+    const result = {
+      success: true,
+      deletedCount: 0,
+      freedSpace: 0,
+      errors: [] as string[]
+    }
+
+    // #ifdef APP-PLUS
+    try {
+      const recordings = await this.scanRecordingFolders()
+      const cutoffTime = Date.now() - retentionDays * 24 * 60 * 60 * 1000
+      const File = plus.android.importClass('java.io.File')
+
+      console.log(`[RecordingService] 开始清理 ${retentionDays} 天前的录音文件`)
+      console.log(`[RecordingService] 截止时间: ${new Date(cutoffTime).toLocaleString()}`)
+      console.log(`[RecordingService] 扫描到录音文件: ${recordings.length} 个`)
+
+      for (const recording of recordings) {
+        // 跳过最近的录音
+        if (recording.lastModified > cutoffTime) {
+          continue
+        }
+
+        // 跳过已上传的录音（在 knownRecordings 中）
+        if (this.knownRecordings.has(recording.path)) {
+          // 已上传的录音可以删除
+        }
+
+        try {
+          const file = new (File as any)(recording.path)
+          if (file.exists() && file.delete()) {
+            result.deletedCount++
+            result.freedSpace += recording.size
+            console.log(`[RecordingService] 已删除: ${recording.name}`)
+          } else {
+            result.errors.push(`无法删除: ${recording.name}`)
+          }
+        } catch (e: any) {
+          result.errors.push(`删除失败: ${recording.name} - ${e.message || e}`)
+        }
+      }
+
+      console.log(`[RecordingService] 清理完成: 删除 ${result.deletedCount} 个文件，释放 ${(result.freedSpace / 1024 / 1024).toFixed(2)} MB`)
+    } catch (e: any) {
+      console.error('[RecordingService] 清理录音失败:', e)
+      result.success = false
+      result.errors.push(e.message || '清理失败')
+    }
+    // #endif
+
+    return result
+  }
+
+  /**
+   * 🔥 获取录音文件统计信息
+   */
+  async getRecordingStats(): Promise<{
+    totalCount: number
+    totalSize: number
+    oldestDate: number | null
+    newestDate: number | null
+  }> {
+    const stats = {
+      totalCount: 0,
+      totalSize: 0,
+      oldestDate: null as number | null,
+      newestDate: null as number | null
+    }
+
+    // #ifdef APP-PLUS
+    try {
+      const recordings = await this.scanRecordingFolders()
+      stats.totalCount = recordings.length
+
+      for (const recording of recordings) {
+        stats.totalSize += recording.size
+
+        if (stats.oldestDate === null || recording.lastModified < stats.oldestDate) {
+          stats.oldestDate = recording.lastModified
+        }
+        if (stats.newestDate === null || recording.lastModified > stats.newestDate) {
+          stats.newestDate = recording.lastModified
+        }
+      }
+    } catch (e) {
+      console.error('[RecordingService] 获取录音统计失败:', e)
+    }
+    // #endif
+
+    return stats
+  }
 }
 
 // 导出单例

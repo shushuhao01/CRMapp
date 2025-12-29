@@ -102,6 +102,9 @@ export const useCallStore = defineStore('call', {
       if (this.recordingPath && call.hasRecording) {
         try {
           await uploadRecording(call.callId, this.recordingPath)
+          console.log('[CallStore] 录音上传成功')
+          // 通知页面刷新通话记录
+          uni.$emit('recording:uploaded', call.callId)
         } catch (e) {
           console.error('上传录音失败:', e)
         }

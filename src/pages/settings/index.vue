@@ -103,9 +103,25 @@
           <text class="value">点击修改</text>
           <text class="arrow">›</text>
         </view>
+        <!-- 🔥 录音清理设置 -->
+        <view class="setting-item">
+          <text class="label">🗑️ 自动清理录音</text>
+          <switch :checked="callSettings.autoCleanRecording" @change="updateSetting('autoCleanRecording', $event)" color="#34D399" />
+        </view>
+        <view class="setting-item" v-if="callSettings.autoCleanRecording">
+          <text class="label">📅 保留天数</text>
+          <picker :value="retentionDaysIndex" :range="retentionDaysOptions" @change="handleRetentionDaysChange">
+            <text class="value picker-value">{{ callSettings.recordingRetentionDays || 3 }} 天</text>
+          </picker>
+        </view>
+        <view class="setting-item clickable" @tap="handleManualCleanup">
+          <text class="label">🧹 立即清理录音</text>
+          <text class="value">{{ recordingStats.totalCount }} 个文件，{{ formatFileSize(recordingStats.totalSize) }}</text>
+          <text class="arrow">›</text>
+        </view>
       </view>
       <view class="setting-tip">
-        <text>💡 提示：开启手机系统的通话录音功能后，APP会自动扫描并上传录音文件。自动上传功能受密码保护，关闭需要输入密码或回答安全问题。</text>
+        <text>💡 提示：开启手机系统的通话录音功能后，APP会自动扫描并上传录音文件。自动上传功能受密码保护，关闭需要输入密码或回答安全问题。开启自动清理后，超过保留天数的本地录音文件将被自动删除以节省存储空间。</text>
       </view>
     </view>
 
@@ -268,7 +284,23 @@ let autoCheckTimer: number | null = null
 const callSettings = ref({
   callNotify: true,
   vibrate: false,
-  autoUploadRecording: false
+  autoUploadRecording: false,
+  autoCleanRecording: false,
+  recordingRetentionDays: 3
+})
+
+// 🔥 录音清理相关
+const retentionDaysOptions = ['1', '2', '3', '5', '7', '14', '30']
+const retentionDaysIndex = computed(() => {
+  const days = String(callSettings.value.recordingRetentionDays || 3)
+  const index = retentionDaysOptions.indexOf(days)
+  return index >= 0 ? index : 2 // 默认3天
+})
+const recordingStats = ref({
+  totalCount: 0,
+  totalSize: 0,
+  oldestDate: null as number | null,
+  newestDate: null as number | null
 })
 
 // 密码相关
@@ -475,12 +507,70 @@ const autoCheckRecordingStatus = async () => {
     if (hasPermission) {
       const enabled = await recordingService.checkRecordingEnabled()
       recordingEnabled.value = enabled
+
+      // 🔥 同时更新录音统计
+      const stats = await recordingService.getRecordingStats()
+      recordingStats.value = stats
     }
   } catch (e) {
     console.error('自动检测录音状态失败:', e)
   } finally {
     checkingRecording.value = false
   }
+}
+
+// 🔥 处理保留天数变更
+const handleRetentionDaysChange = (e: any) => {
+  const days = parseInt(retentionDaysOptions[e.detail.value])
+  callSettings.value.recordingRetentionDays = days
+  saveSettings()
+}
+
+// 🔥 手动清理录音
+const handleManualCleanup = async () => {
+  uni.showModal({
+    title: '清理录音文件',
+    content: `确定要清理 ${callSettings.value.recordingRetentionDays || 3} 天前的本地录音文件吗？\n\n已上传到服务器的录音不受影响。`,
+    confirmText: '确定清理',
+    confirmColor: '#EF4444',
+    success: async (res) => {
+      if (res.confirm) {
+        uni.showLoading({ title: '清理中...' })
+        try {
+          const result = await recordingService.cleanupExpiredRecordings(callSettings.value.recordingRetentionDays || 3)
+          uni.hideLoading()
+
+          if (result.success) {
+            const freedMB = (result.freedSpace / 1024 / 1024).toFixed(2)
+            uni.showModal({
+              title: '清理完成',
+              content: `已删除 ${result.deletedCount} 个录音文件\n释放空间: ${freedMB} MB`,
+              showCancel: false
+            })
+
+            // 更新统计
+            const stats = await recordingService.getRecordingStats()
+            recordingStats.value = stats
+          } else {
+            uni.showToast({ title: '清理失败', icon: 'none' })
+          }
+        } catch (e) {
+          uni.hideLoading()
+          console.error('清理录音失败:', e)
+          uni.showToast({ title: '清理失败', icon: 'none' })
+        }
+      }
+    }
+  })
+}
+
+// 🔥 格式化文件大小
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
 // 🔥 手动刷新录音状态
@@ -568,7 +658,36 @@ onMounted(() => {
   autoCheckTimer = setInterval(() => {
     autoCheckRecordingStatus()
   }, 30000) as unknown as number
+
+  // 🔥 检查是否需要自动清理录音（每天检查一次）
+  checkAndAutoCleanRecordings()
 })
+
+// 🔥 检查并自动清理录音
+const checkAndAutoCleanRecordings = async () => {
+  if (!callSettings.value.autoCleanRecording) return
+
+  try {
+    // 检查上次清理时间
+    const lastCleanup = uni.getStorageSync('lastRecordingCleanup')
+    const now = Date.now()
+    const oneDayMs = 24 * 60 * 60 * 1000
+
+    if (!lastCleanup || (now - parseInt(lastCleanup)) > oneDayMs) {
+      console.log('[Settings] 执行自动录音清理')
+      const result = await recordingService.cleanupExpiredRecordings(callSettings.value.recordingRetentionDays || 3)
+
+      if (result.deletedCount > 0) {
+        console.log(`[Settings] 自动清理完成: 删除 ${result.deletedCount} 个文件`)
+      }
+
+      // 记录清理时间
+      uni.setStorageSync('lastRecordingCleanup', String(now))
+    }
+  } catch (e) {
+    console.error('[Settings] 自动清理录音失败:', e)
+  }
+}
 
 onUnmounted(() => {
   uni.$off('ws:connected')
@@ -824,6 +943,11 @@ const handleLogout = () => {
         font-size: 32rpx;
         color: #D1D5DB;
         margin-left: 12rpx;
+      }
+
+      .picker-value {
+        color: #3B82F6;
+        text-decoration: underline;
       }
 
       .connection-status, .recording-status {

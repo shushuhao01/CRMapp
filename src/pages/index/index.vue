@@ -221,12 +221,27 @@ onMounted(() => {
     console.log('[Index] 收到通话完成事件，刷新统计数据')
     loadTodayStats()
   })
+  // 监听需要重新绑定事件
+  uni.$on('ws:need_rebind', (data: any) => {
+    console.log('[Index] 收到需要重新绑定事件:', data)
+    uni.showModal({
+      title: '需要重新绑定',
+      content: '连接凭证已失效或丢失，需要重新扫码绑定设备',
+      confirmText: '去扫码',
+      success: (res) => {
+        if (res.confirm) {
+          uni.navigateTo({ url: '/pages/scan/index' })
+        }
+      }
+    })
+  })
 })
 
 onUnmounted(() => {
   uni.$off('ws:connected')
   uni.$off('ws:disconnected')
   uni.$off('call:completed')
+  uni.$off('ws:need_rebind')
 })
 
 onShow(() => {
