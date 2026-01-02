@@ -75,6 +75,18 @@
       "style": {
         "navigationBarTitleText": "拨号"
       }
+    },
+    {
+      "path": "pages/agreement/user-agreement",
+      "style": {
+        "navigationBarTitleText": "用户服务协议"
+      }
+    },
+    {
+      "path": "pages/agreement/privacy-policy",
+      "style": {
+        "navigationBarTitleText": "隐私政策"
+      }
     }
   ],
   "globalStyle": {

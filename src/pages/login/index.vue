@@ -46,6 +46,21 @@
         </view>
       </view>
 
+      <!-- 协议勾选 -->
+      <view class="agreement-section">
+        <view class="agreement-checkbox" @tap="toggleAgreement">
+          <view class="checkbox" :class="{ checked: agreedToTerms }">
+            <text v-if="agreedToTerms">✓</text>
+          </view>
+        </view>
+        <view class="agreement-text">
+          <text class="normal-text">我已阅读并同意</text>
+          <text class="link-text" @tap.stop="openUserAgreement">《用户服务协议》</text>
+          <text class="normal-text">和</text>
+          <text class="link-text" @tap.stop="openPrivacyPolicy">《隐私政策》</text>
+        </view>
+      </view>
+
       <button
         class="btn-login"
         @tap="handleLogin"
@@ -77,26 +92,58 @@ const userStore = useUserStore()
 const username = ref('')
 const password = ref('')
 const rememberPassword = ref(true)
+const agreedToTerms = ref(false)
 const isLoading = ref(false)
 
 const canLogin = computed(() => {
-  return username.value.trim() && password.value.trim() && !isLoading.value
+  return username.value.trim() && password.value.trim() && agreedToTerms.value && !isLoading.value
 })
 
 onMounted(() => {
   // 恢复记住的用户名和密码
   const savedUsername = uni.getStorageSync('savedUsername')
   const savedPassword = uni.getStorageSync('savedPassword')
+  const savedAgreement = uni.getStorageSync('agreedToTerms')
+
   if (savedUsername) {
     username.value = savedUsername
   }
   if (savedPassword) {
     password.value = savedPassword
   }
+  // 恢复协议同意状态
+  if (savedAgreement) {
+    agreedToTerms.value = true
+  }
 })
+
+// 切换协议同意状态
+const toggleAgreement = () => {
+  agreedToTerms.value = !agreedToTerms.value
+}
+
+// 打开用户协议
+const openUserAgreement = () => {
+  uni.navigateTo({ url: '/pages/agreement/user-agreement' })
+}
+
+// 打开隐私政策
+const openPrivacyPolicy = () => {
+  uni.navigateTo({ url: '/pages/agreement/privacy-policy' })
+}
 
 // 登录
 const handleLogin = async () => {
+  // 检查是否同意协议
+  if (!agreedToTerms.value) {
+    uni.showToast({
+      title: '请先阅读并同意用户协议和隐私政策',
+      icon: 'none',
+      duration: 2000
+    })
+    return
+  }
+
   if (!canLogin.value) return
 
   isLoading.value = true
@@ -132,6 +179,9 @@ const handleLogin = async () => {
       uni.removeStorageSync('savedUsername')
       uni.removeStorageSync('savedPassword')
     }
+
+    // 保存协议同意状态
+    uni.setStorageSync('agreedToTerms', true)
 
     uni.showToast({ title: '登录成功', icon: 'success' })
 
@@ -242,7 +292,7 @@ const goToServerConfig = () => {
     .options {
       display: flex;
       justify-content: space-between;
-      margin: 32rpx 0;
+      margin: 32rpx 0 24rpx 0;
 
       .checkbox-item {
         display: flex;
@@ -276,6 +326,54 @@ const goToServerConfig = () => {
       }
     }
 
+    .agreement-section {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 32rpx;
+      padding: 0 8rpx;
+
+      .agreement-checkbox {
+        flex-shrink: 0;
+        margin-right: 12rpx;
+        margin-top: 4rpx;
+
+        .checkbox {
+          width: 32rpx;
+          height: 32rpx;
+          border: 2rpx solid #D1D5DB;
+          border-radius: 6rpx;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          &.checked {
+            background: #34D399;
+            border-color: #34D399;
+
+            text {
+              color: #fff;
+              font-size: 22rpx;
+            }
+          }
+        }
+      }
+
+      .agreement-text {
+        flex: 1;
+        line-height: 1.6;
+
+        .normal-text {
+          font-size: 24rpx;
+          color: #6B7280;
+        }
+
+        .link-text {
+          font-size: 24rpx;
+          color: #34D399;
+        }
+      }
+    }
+
     .btn-login {
       width: 100%;
       height: 96rpx;
@@ -285,7 +383,6 @@ const goToServerConfig = () => {
       font-weight: 500;
       border-radius: 48rpx;
       border: none;
-      margin-top: 20rpx;
 
       &[disabled] {
         opacity: 0.5;
