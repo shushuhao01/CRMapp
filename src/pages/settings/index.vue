@@ -134,6 +134,19 @@
           <text class="value">{{ serverStore.displayUrl }}</text>
           <text class="arrow">›</text>
         </view>
+        <view class="setting-item clickable" @tap="showFeedback">
+          <text class="label">💬 意见反馈</text>
+          <text class="value">联系我们</text>
+          <text class="arrow">›</text>
+        </view>
+        <view class="setting-item clickable" @tap="openUserAgreement">
+          <text class="label">📄 用户协议</text>
+          <text class="arrow">›</text>
+        </view>
+        <view class="setting-item clickable" @tap="openPrivacyPolicy">
+          <text class="label">🔒 隐私政策</text>
+          <text class="arrow">›</text>
+        </view>
         <view class="setting-item clickable" @tap="showAbout">
           <text class="label">ℹ️ 关于</text>
           <text class="value">v1.0.0</text>
@@ -775,6 +788,26 @@ const openRecordingSettings = async () => {
     confirmText: '我知道了'
   })
   // #endif
+}
+
+// 意见反馈 - 显示联系方式（与CRM系统基本设置保持一致）
+const showFeedback = () => {
+  uni.showModal({
+    title: '联系我们',
+    content: '如有问题或建议，请通过以下方式联系我们：\n\n📞 客服电话：400-123-4567\n📧 邮箱：contact@example.com\n🏢 公司：示例科技有限公司\n📍 地址：北京市朝阳区示例大厦',
+    showCancel: false,
+    confirmText: '我知道了'
+  })
+}
+
+// 打开用户协议
+const openUserAgreement = () => {
+  uni.navigateTo({ url: '/pages/agreement/user-agreement' })
+}
+
+// 打开隐私政策
+const openPrivacyPolicy = () => {
+  uni.navigateTo({ url: '/pages/agreement/privacy-policy' })
 }
 
 // 关于
