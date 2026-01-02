@@ -37,27 +37,25 @@
         </view>
       </view>
 
-      <view class="options">
-        <view class="checkbox-item" @tap="rememberPassword = !rememberPassword">
-          <view class="checkbox" :class="{ checked: rememberPassword }">
-            <text v-if="rememberPassword">✓</text>
+      <!-- 记住密码和协议勾选 -->
+      <view class="checkbox-section">
+        <view class="checkbox-row" @tap="rememberPassword = !rememberPassword">
+          <view class="checkbox-box" :class="{ checked: rememberPassword }">
+            <text v-if="rememberPassword" class="check-icon">✓</text>
           </view>
-          <text>记住密码</text>
+          <text class="checkbox-label">记住密码</text>
         </view>
-      </view>
 
-      <!-- 协议勾选 -->
-      <view class="agreement-section">
-        <view class="agreement-checkbox" @tap="toggleAgreement">
-          <view class="checkbox" :class="{ checked: agreedToTerms }">
-            <text v-if="agreedToTerms">✓</text>
+        <view class="checkbox-row agreement-row">
+          <view class="checkbox-box" :class="{ checked: agreedToTerms }" @tap="toggleAgreement">
+            <text v-if="agreedToTerms" class="check-icon">✓</text>
           </view>
-        </view>
-        <view class="agreement-text">
-          <text class="normal-text">我已阅读并同意</text>
-          <text class="link-text" @tap.stop="openUserAgreement">《用户服务协议》</text>
-          <text class="normal-text">和</text>
-          <text class="link-text" @tap.stop="openPrivacyPolicy">《隐私政策》</text>
+          <view class="agreement-text">
+            <text class="checkbox-label">我已阅读并同意</text>
+            <text class="link-text" @tap.stop="openUserAgreement">《用户协议》</text>
+            <text class="checkbox-label">和</text>
+            <text class="link-text" @tap.stop="openPrivacyPolicy">《隐私政策》</text>
+          </view>
         </view>
       </view>
 
@@ -289,86 +287,59 @@ const goToServerConfig = () => {
       }
     }
 
-    .options {
-      display: flex;
-      justify-content: space-between;
-      margin: 32rpx 0 24rpx 0;
-
-      .checkbox-item {
-        display: flex;
-        align-items: center;
-
-        .checkbox {
-          width: 36rpx;
-          height: 36rpx;
-          border: 2rpx solid #D1D5DB;
-          border-radius: 8rpx;
-          margin-right: 12rpx;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-
-          &.checked {
-            background: #34D399;
-            border-color: #34D399;
-
-            text {
-              color: #fff;
-              font-size: 24rpx;
-            }
-          }
-        }
-
-        text {
-          font-size: 26rpx;
-          color: #6B7280;
-        }
-      }
-    }
-
-    .agreement-section {
-      display: flex;
-      align-items: flex-start;
-      margin-bottom: 32rpx;
+    .checkbox-section {
+      margin: 32rpx 0;
       padding: 0 8rpx;
 
-      .agreement-checkbox {
-        flex-shrink: 0;
-        margin-right: 12rpx;
-        margin-top: 4rpx;
+      .checkbox-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20rpx;
 
-        .checkbox {
-          width: 32rpx;
-          height: 32rpx;
-          border: 2rpx solid #D1D5DB;
-          border-radius: 6rpx;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+        &.agreement-row {
+          align-items: flex-start;
 
-          &.checked {
-            background: #34D399;
-            border-color: #34D399;
-
-            text {
-              color: #fff;
-              font-size: 22rpx;
-            }
+          .checkbox-box {
+            margin-top: 2rpx;
           }
         }
+      }
+
+      .checkbox-box {
+        width: 36rpx;
+        height: 36rpx;
+        border: 2rpx solid #D1D5DB;
+        border-radius: 8rpx;
+        margin-right: 16rpx;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+
+        &.checked {
+          background: #34D399;
+          border-color: #34D399;
+        }
+
+        .check-icon {
+          color: #fff;
+          font-size: 24rpx;
+          font-weight: bold;
+        }
+      }
+
+      .checkbox-label {
+        font-size: 28rpx;
+        color: #6B7280;
+        line-height: 1.5;
       }
 
       .agreement-text {
         flex: 1;
-        line-height: 1.6;
-
-        .normal-text {
-          font-size: 24rpx;
-          color: #6B7280;
-        }
+        line-height: 1.5;
 
         .link-text {
-          font-size: 24rpx;
+          font-size: 28rpx;
           color: #34D399;
         }
       }
