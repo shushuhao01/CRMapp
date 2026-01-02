@@ -335,6 +335,9 @@ class RecordingService {
       // 标记为已上传
       this.knownRecordings.add(recording.path)
 
+      // 🔥 触发录音上传成功事件，通知通话记录列表刷新
+      uni.$emit('recording:uploaded', callId)
+
       return true
     } catch (e) {
       console.error('[RecordingService] 录音上传失败:', e)
